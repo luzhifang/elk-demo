@@ -1,0 +1,35 @@
+#filebeat自身日志配置
+logging.level: debug
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# 日志输入配置（可配置多个）
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /data/elk-demo/logs/*.log
+    tags: [ "elk-demo" ]
+    fields_under_root: true
+#日志输出配置
+
+# 输出到文件
+#output.file:
+#  path: "/data/elk-demo/logs"
+#  filename: filebeat-output
+
+# 输出到ES
+#setup.ilm.enabled: false
+#setup.template.name: "elk-demo"
+#setup.template.pattern: "elk-demo-*"
+#output.elasticsearch:
+#  hosts: [ "http://es01:9200","http://es02:9200","http://es03:9200" ]
+#  index: "elk-demo-%{+yyyy.MM.dd}"
+
+# 输出到logstash
+output.logstash:
+  hosts: [ "logstash:5044" ]

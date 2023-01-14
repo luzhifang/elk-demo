@@ -1,0 +1,5 @@
+server.port: 5601 #kibana端口
+server.host: "0.0.0.0" #kibana地址
+server.maxPayload: 10485760
+kibana.index: ".kibana" #kibana的元数据也会存放在ES的索引中，这里配置的就是索引的名字，一般不用修改
+i18n.locale: "zh-CN"

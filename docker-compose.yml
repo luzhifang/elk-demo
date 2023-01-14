@@ -1,0 +1,128 @@
+version: "3.4"
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - /data/elk-demo/logs:/data/elk-demo/logs
+    user: root
+    networks:
+      - elk-net-1
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.8
+    container_name: es01
+    environment:
+      - node.name=es01
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es02,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elk-net-1
+  es02:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.8
+    container_name: es02
+    environment:
+      - node.name=es02
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es03
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data02:/usr/share/elasticsearch/data
+    networks:
+      - elk-net-1
+  es03:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.8
+    container_name: es03
+    environment:
+      - node.name=es03
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=es01,es02
+      - cluster.initial_master_nodes=es01,es02,es03
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data03:/usr/share/elasticsearch/data
+    networks:
+      - elk-net-1
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.8
+    container_name: kibana
+    hostname: kibana
+    volumes:
+      - ./config/kibana.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - "5601:5601"
+    depends_on:
+      - es01
+    networks:
+      - elk-net-1
+    environment:
+      - 'ELASTICSEARCH_HOSTS=["http://es01:9200","http://es02:9200","http://es03:9200"]'
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.17.8
+    container_name: filebeat
+    hostname: filebeat
+    volumes:
+      - ./config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log/filebeat:/var/log/filebeat
+      - /data/elk-demo/logs:/data/elk-demo/logs
+    user: root
+    depends_on:
+      - logstash
+    networks:
+      - elk-net-1
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.8
+    container_name: logstash
+    hostname: logstash
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./config/logstash.yml:/usr/share/logstash/config/logstash.yml
+    depends_on:
+      - es01
+    networks:
+      - elk-net-1
+
+volumes:
+  data01:
+    driver: local
+  data02:
+    driver: local
+  data03:
+    driver: local
+
+networks:
+  elk-net-1:
+    # 声明使用的网络是使用 bridge 驱动来创建的
+    driver: bridge
+    ipam:
+      # 网络配置
+      config:
+        # 分配的子网网段
+        - subnet: 172.25.64.0/18
+          # 网关地址
+          gateway: 172.25.64.1
